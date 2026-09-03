@@ -2,20 +2,41 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="${PYTHON:-python3}"
 
 # 표준 라이브러리만 쓰므로 로컬 실행이 전부다. Docker 는 쓰지 않는다.
+#
+# 이 미션은 Python 3.10 이상을 요구하는데 macOS 기본 python3 는 3.9 다.
+# PYTHON 환경변수가 있으면 그걸 존중하고, 없으면 3.10+ 인터프리터를 직접 찾는다.
+
+version_ok() {
+  command -v "$1" &>/dev/null && \
+    "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' &>/dev/null
+}
+
+resolve_python() {
+  if [ -n "$PYTHON" ]; then
+    return  # 사용자가 지정했으면 그대로 쓴다 (검사는 check_python 이 한다)
+  fi
+  for candidate in python3 python3.14 python3.13 python3.12 python3.11 python3.10; do
+    if version_ok "$candidate"; then
+      PYTHON="$candidate"
+      return
+    fi
+  done
+  PYTHON=python3  # 못 찾으면 check_python 이 이유를 설명하고 죽는다
+}
 
 check_python() {
+  resolve_python
   if ! command -v "$PYTHON" &>/dev/null; then
     echo "오류: '$PYTHON' 을 찾을 수 없습니다. PYTHON 환경변수로 지정하세요." >&2
     exit 1
   fi
-  "$PYTHON" - <<'PY'
-import sys
-if sys.version_info < (3, 10):
-    sys.exit("오류: Python 3.10 이상이 필요합니다 (현재 %d.%d)" % sys.version_info[:2])
-PY
+  if ! version_ok "$PYTHON"; then
+    echo "오류: Python 3.10 이상이 필요합니다 (현재 $("$PYTHON" -V 2>&1))." >&2
+    echo "      3.10+ 인터프리터를 PYTHON 환경변수로 지정하세요. 예: PYTHON=python3.14 ./run.sh" >&2
+    exit 1
+  fi
 }
 
 case "${1:-run}" in
