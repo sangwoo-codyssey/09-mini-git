@@ -11,8 +11,9 @@
 from typing import Callable
 
 from mini_git.errors import InvalidArgs, UnknownCommand
+from mini_git.graph import topological_order
 from mini_git.parser import Command
-from mini_git.repository import Repository
+from mini_git.repository import Commit, Repository
 
 Handler = Callable[[Repository, Command], str]
 
@@ -64,11 +65,55 @@ def handle_commit(repo: Repository, command: Command) -> str:
     return f"[{repo.head} {commit.hash}] {commit.message}"
 
 
+def _branch_tips(repo: Repository) -> dict[str, list[str]]:
+    """`{커밋 해시 → 그 커밋을 가리키는 브랜치 이름들}`.
+
+    `branches` 는 이름 → 해시 방향이라 출력에 `[main]` 을 붙이려면 뒤집어야 한다.
+    아직 커밋이 없는 브랜치는 None 을 가리키므로 걸러낸다 (git 의 unborn branch).
+    """
+    tips: dict[str, list[str]] = {}
+    for name, commit_hash in repo.branches.items():
+        if commit_hash is not None:
+            tips.setdefault(commit_hash, []).append(name)
+    return tips
+
+
+def _format_commit(commit: Commit, branches: list[str]) -> str:
+    """커밋 하나를 두 줄로 그린다 (과제 §8 예시 형식).
+
+        commit a1b2c3 (Alice, 2024-01-15 09:00:00) [main]
+        Initial commit
+    """
+    label = f" [{', '.join(branches)}]" if branches else ""
+    return (
+        f"commit {commit.hash} ({commit.author}, {commit.formatted_time}){label}\n"
+        f"{commit.message}"
+    )
+
+
+def handle_log(repo: Repository, command: Command) -> str:
+    """LOG — 부모가 자식보다 먼저 오도록 커밋을 출력한다.
+
+    "최신순" 이 아니다. 과제 §4 가 위상 정렬 성격의 출력을 요구한다.
+    """
+    repo.require_initialized()
+    if command.args or command.options:
+        raise InvalidArgs("LOG takes no arguments")
+
+    order = topological_order(repo.commits)
+    if not order:
+        return "No commits yet."
+
+    tips = _branch_tips(repo)
+    return "\n".join(_format_commit(c, tips.get(c.hash, [])) for c in order)
+
+
 HANDLERS: dict[str, Handler] = {
     "init": handle_init,
     "branch": handle_branch,
     "switch": handle_switch,
     "commit": handle_commit,
+    "log": handle_log,
 }
 
 
