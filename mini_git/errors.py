@@ -44,3 +44,20 @@ class UnknownCommit(MiniGitError):
 
     def __init__(self, commit_hash: str) -> None:
         super().__init__(f"Unknown commit: {commit_hash}")
+
+
+class NotInitialized(MiniGitError):
+    """저장소가 아직 없다. INIT 을 먼저 해야 하는 명령을 그전에 불렀다."""
+
+    def __init__(self) -> None:
+        super().__init__("Not initialized: run INIT <user_name> first")
+
+
+class BranchExists(MiniGitError):
+    """같은 이름의 브랜치가 이미 있다.
+
+    덮어쓰면 기존 브랜치가 가리키던 커밋을 잃으므로 거절한다.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Branch already exists: {name}")
