@@ -101,6 +101,71 @@ class BranchSwitchCommandTest(unittest.TestCase):
             run_line(self.repo, "switch nonexistent")
 
 
+class LogCommandTest(unittest.TestCase):
+    """LOG 는 부모가 자식보다 먼저 오게 출력한다."""
+
+    def setUp(self):
+        self.repo = Repository()
+        run_line(self.repo, 'init "Alice"')
+
+    def test_커밋이_없으면_알려준다(self):
+        self.assertEqual(run_line(self.repo, "log"), "No commits yet.")
+
+    def test_INIT_전에는_거절된다(self):
+        with self.assertRaises(NotInitialized):
+            run_line(Repository(), "log")
+
+    def test_한_커밋이_두_줄로_나온다(self):
+        run_line(self.repo, 'commit "Initial commit"')
+        commit = self.repo.commits[self.repo.branches["main"]]
+
+        first, second = run_line(self.repo, "log").split("\n")
+        self.assertEqual(
+            first,
+            f"commit {commit.hash} (Alice, {commit.formatted_time}) [main]",
+        )
+        self.assertEqual(second, "Initial commit")
+
+    def test_부모가_자식보다_먼저_나온다(self):
+        run_line(self.repo, 'commit "first"')
+        run_line(self.repo, 'commit "second"')
+        output = run_line(self.repo, "log")
+        self.assertLess(output.index("first"), output.index("second"))
+
+    def test_갈라진_브랜치의_커밋이_전부_나온다(self):
+        run_line(self.repo, 'commit "Initial commit"')
+        run_line(self.repo, "branch feature")
+        run_line(self.repo, "switch feature")
+        run_line(self.repo, 'commit "Add login feature"')
+        run_line(self.repo, "switch main")
+        run_line(self.repo, 'commit "Add payment feature"')
+
+        output = run_line(self.repo, "log")
+        # 갈라졌어도 뿌리는 둘 다보다 앞이다.
+        self.assertLess(output.index("Initial commit"), output.index("Add login"))
+        self.assertLess(output.index("Initial commit"), output.index("Add payment"))
+        self.assertIn("[feature]", output)
+        self.assertIn("[main]", output)
+
+    def test_브랜치_라벨은_끝에_있는_커밋에만_붙는다(self):
+        run_line(self.repo, 'commit "first"')
+        run_line(self.repo, 'commit "second"')
+        first_line, _, second_line, _ = run_line(self.repo, "log").split("\n")
+        self.assertNotIn("[main]", first_line)
+        self.assertIn("[main]", second_line)
+
+    def test_한_커밋을_여러_브랜치가_가리키면_모두_붙는다(self):
+        run_line(self.repo, 'commit "first"')
+        run_line(self.repo, "branch feature")
+        header = run_line(self.repo, "log").split("\n")[0]
+        self.assertIn("main", header)
+        self.assertIn("feature", header)
+
+    def test_아직_옵션은_받지_않는다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "log --sort-by=date")
+
+
 class ScenarioTest(unittest.TestCase):
     """과제 §8 결과 예시의 앞부분을 그대로 따라간다."""
 
@@ -125,6 +190,9 @@ class ScenarioTest(unittest.TestCase):
         self.assertEqual(login.message, "Add login feature")
         self.assertEqual(payment.message, "Add payment feature")
         self.assertEqual(login.parents, payment.parents)  # 같은 곳에서 갈라졌다
+
+        log = run_line(repo, "log")
+        self.assertEqual(log.count("commit "), 3)
 
 
 if __name__ == "__main__":
