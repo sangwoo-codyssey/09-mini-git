@@ -10,7 +10,12 @@ Repository 를 세우지 않고 손으로 만든 그래프를 넣는다. graph.p
 
 import unittest
 
-from mini_git.graph import topological_order
+from mini_git.graph import (
+    ancestors,
+    shortest_path,
+    topological_order,
+    undirected_adjacency,
+)
 from mini_git.repository import Commit
 
 
@@ -109,6 +114,98 @@ class TopologicalOrderTest(unittest.TestCase):
             )
         }
         self.assertEqual([c.hash for c in topological_order(orphan)], ["b"])
+
+
+def diamond() -> dict[str, Commit]:
+    """마름모. aa 에서 갈라져 dd 에서 다시 만난다 (머지 커밋 모양).
+
+        aa ──┬── bb ──┬── dd
+             └── cc ──┘
+
+    해시 길이를 전부 2로 맞춘 것은 일부러다. shortest_path 의 사전순 선택은
+    해시 길이가 같다는 전제 위에서만 그리디로 옳다.
+    """
+    return build(("aa", ()), ("bb", ("aa",)), ("cc", ("aa",)), ("dd", ("bb", "cc")))
+
+
+class AdjacencyTest(unittest.TestCase):
+    """무방향 인접 목록은 양쪽에 서로를 넣는다."""
+
+    def test_부모와_자식이_서로를_이웃으로_갖는다(self):
+        adjacency = undirected_adjacency(build(("aa", ()), ("bb", ("aa",))))
+        self.assertEqual(adjacency["aa"], {"bb"})
+        self.assertEqual(adjacency["bb"], {"aa"})
+
+    def test_저장소에_없는_부모는_간선이_되지_않는다(self):
+        commits = {
+            "bb": Commit(
+                hash="bb", message="고아", author="Alice",
+                timestamp=1.0, parents=("없는부모",),
+            )
+        }
+        self.assertEqual(undirected_adjacency(commits), {"bb": set()})
+
+
+class AncestorsTest(unittest.TestCase):
+    """조상은 부모 방향으로만 올라간다 — 무방향이 아니다."""
+
+    def test_뿌리는_조상이_없다(self):
+        self.assertEqual(ancestors(build(("aa", ())), "aa"), {})
+
+    def test_자기_자신은_조상이_아니다(self):
+        commits = build(("aa", ()), ("bb", ("aa",)))
+        self.assertEqual(set(ancestors(commits, "bb")), {"aa"})
+
+    def test_체인을_끝까지_올라간다(self):
+        commits = build(("aa", ()), ("bb", ("aa",)), ("cc", ("bb",)), ("dd", ("cc",)))
+        self.assertEqual(set(ancestors(commits, "dd")), {"aa", "bb", "cc"})
+
+    def test_머지_커밋은_양쪽_조상을_모두_갖는다(self):
+        self.assertEqual(set(ancestors(diamond(), "dd")), {"aa", "bb", "cc"})
+
+    def test_형제와_자손은_조상이_아니다(self):
+        # bb 의 조상은 aa 뿐. 형제 cc 도, 자손 dd 도 아니다.
+        # 무방향으로 돌면 셋 다 딸려 오므로, 방향을 지키는지 검사한다.
+        self.assertEqual(set(ancestors(diamond(), "bb")), {"aa"})
+
+
+class ShortestPathTest(unittest.TestCase):
+    """간선을 무방향으로 보고 간선 수 최소 경로를 찾는다."""
+
+    def test_같은_커밋이면_자기_자신_하나(self):
+        self.assertEqual(shortest_path(build(("aa", ())), "aa", "aa"), ["aa"])
+
+    def test_부모에서_자식으로_내려갈_수_있다(self):
+        commits = build(("aa", ()), ("bb", ("aa",)))
+        self.assertEqual(shortest_path(commits, "aa", "bb"), ["aa", "bb"])
+
+    def test_자식에서_부모로_올라갈_수_있다(self):
+        commits = build(("aa", ()), ("bb", ("aa",)))
+        self.assertEqual(shortest_path(commits, "bb", "aa"), ["bb", "aa"])
+
+    def test_형제끼리는_공통_부모를_거쳐_간다(self):
+        # 방향을 지키면 bb 와 cc 는 서로 도달 불가다. 무방향이라 길이 2로 이어진다.
+        self.assertEqual(shortest_path(diamond(), "bb", "cc"), ["bb", "aa", "cc"])
+
+    def test_끊긴_그래프에는_경로가_없다(self):
+        commits = build(("aa", ()), ("bb", ("aa",)), ("xx", ()), ("yy", ("xx",)))
+        self.assertIsNone(shortest_path(commits, "bb", "yy"))
+
+    def test_최단_경로가_여럿이면_사전순으로_작은_것(self):
+        # aa->bb->dd 와 aa->cc->dd 둘 다 길이 2. "bb" < "cc" 이므로 앞의 것.
+        self.assertEqual(shortest_path(diamond(), "aa", "dd"), ["aa", "bb", "dd"])
+
+    def test_사전순_선택은_해시_이름에만_달렸다(self):
+        # 같은 모양인데 가운데 두 해시 이름만 바꾼다. 선택이 따라 바뀌어야 한다.
+        commits = build(("aa", ()), ("zz", ("aa",)), ("mm", ("aa",)), ("dd", ("zz", "mm")))
+        self.assertEqual(shortest_path(commits, "aa", "dd"), ["aa", "mm", "dd"])
+
+    def test_먼_길로_돌아가지_않는다(self):
+        #   aa - bb - cc - dd   그리고   aa - dd  로 바로 가는 지름길
+        commits = build(
+            ("aa", ()), ("bb", ("aa",)), ("cc", ("bb",)), ("dd", ("aa", "cc"))
+        )
+        self.assertEqual(shortest_path(commits, "aa", "dd"), ["aa", "dd"])
 
 
 if __name__ == "__main__":

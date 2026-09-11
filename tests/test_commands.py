@@ -12,6 +12,7 @@ from mini_git.errors import (
     NotInitialized,
     UnknownBranch,
     UnknownCommand,
+    UnknownCommit,
 )
 from mini_git.repository import Repository
 
@@ -166,6 +167,77 @@ class LogCommandTest(unittest.TestCase):
             run_line(self.repo, "log --sort-by=date")
 
 
+class DivergedRepo(unittest.TestCase):
+    """과제 §8 예시와 같은 갈라진 저장소를 세우는 공통 setUp."""
+
+    def setUp(self):
+        self.repo = Repository()
+        run_line(self.repo, 'init "Alice"')
+        run_line(self.repo, 'commit "Initial commit"')
+        self.base = self.repo.branches["main"]
+
+        run_line(self.repo, "branch feature")
+        run_line(self.repo, "switch feature")
+        run_line(self.repo, 'commit "Add login feature"')
+        self.login = self.repo.branches["feature"]
+
+        run_line(self.repo, "switch main")
+        run_line(self.repo, 'commit "Add payment feature"')
+        self.payment = self.repo.branches["main"]
+
+
+class AncestorsCommandTest(DivergedRepo):
+    def test_뿌리는_조상이_없다(self):
+        self.assertEqual(
+            run_line(self.repo, f"ancestors {self.base}"), "No ancestors."
+        )
+
+    def test_조상이_출력된다(self):
+        output = run_line(self.repo, f"ancestors {self.login}")
+        self.assertIn(self.base, output)
+        self.assertIn("Initial commit", output)
+
+    def test_형제는_조상이_아니다(self):
+        output = run_line(self.repo, f"ancestors {self.login}")
+        self.assertNotIn(self.payment, output)
+
+    def test_없는_커밋은_거절된다(self):
+        with self.assertRaises(UnknownCommit):
+            run_line(self.repo, "ancestors deadbe")
+
+    def test_INIT_전에는_거절된다(self):
+        with self.assertRaises(NotInitialized):
+            run_line(Repository(), "ancestors deadbe")
+
+
+class PathCommandTest(DivergedRepo):
+    def test_부모_자식_경로(self):
+        self.assertEqual(
+            run_line(self.repo, f"path {self.base} {self.payment}"),
+            f"Path: {self.base} -> {self.payment}",
+        )
+
+    def test_형제끼리는_공통_부모를_거친다(self):
+        self.assertEqual(
+            run_line(self.repo, f"path {self.login} {self.payment}"),
+            f"Path: {self.login} -> {self.base} -> {self.payment}",
+        )
+
+    def test_자기_자신까지의_경로(self):
+        self.assertEqual(
+            run_line(self.repo, f"path {self.base} {self.base}"),
+            f"Path: {self.base}",
+        )
+
+    def test_인자가_둘이_아니면_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, f"path {self.base}")
+
+    def test_없는_커밋은_거절된다(self):
+        with self.assertRaises(UnknownCommit):
+            run_line(self.repo, f"path {self.base} deadbe")
+
+
 class ScenarioTest(unittest.TestCase):
     """과제 §8 결과 예시의 앞부분을 그대로 따라간다."""
 
@@ -193,6 +265,13 @@ class ScenarioTest(unittest.TestCase):
 
         log = run_line(repo, "log")
         self.assertEqual(log.count("commit "), 3)
+
+        base = login.parents[0]
+        self.assertEqual(
+            run_line(repo, f"path {base} {payment.hash}"),
+            f"Path: {base} -> {payment.hash}",
+        )
+        self.assertIn(base, run_line(repo, f"ancestors {login.hash}"))
 
 
 if __name__ == "__main__":
