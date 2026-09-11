@@ -162,9 +162,68 @@ class LogCommandTest(unittest.TestCase):
         self.assertIn("main", header)
         self.assertIn("feature", header)
 
-    def test_아직_옵션은_받지_않는다(self):
+    def test_모르는_옵션은_거절된다(self):
         with self.assertRaises(InvalidArgs):
-            run_line(self.repo, "log --sort-by=date")
+            run_line(self.repo, "log --oneline=true")
+
+    def test_sort_by_값이_이상하면_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "log --sort-by=hash")
+
+
+class LogSortByTest(unittest.TestCase):
+    """LOG --sort-by 는 위상 순서 위에 안정 정렬을 한 번 더 얹는다."""
+
+    def setUp(self):
+        self.repo = Repository()
+        run_line(self.repo, 'init "Carol"')
+        run_line(self.repo, 'commit "c1"')
+        run_line(self.repo, 'commit "c2"')
+
+        # 같은 저장소에서 작성자만 바꿔 커밋을 잇는다.
+        self.repo.author = "Alice"
+        run_line(self.repo, 'commit "a1"')
+        self.repo.author = "Bob"
+        run_line(self.repo, 'commit "b1"')
+        self.repo.author = "Alice"
+        run_line(self.repo, 'commit "a2"')
+
+    def messages(self, line: str) -> list[str]:
+        """출력에서 커밋 메시지만 순서대로 뽑는다 (형식: 헤더 줄 / 메시지 줄)."""
+        lines = run_line(self.repo, line).split("\n")
+        return lines[1::2]
+
+    def test_옵션이_없으면_위상_순서(self):
+        self.assertEqual(self.messages("log"), ["c1", "c2", "a1", "b1", "a2"])
+
+    def test_작성자_기준_정렬(self):
+        self.assertEqual(
+            self.messages("log --sort-by=author"),
+            ["a1", "a2", "b1", "c1", "c2"],
+        )
+
+    def test_같은_작성자끼리는_위상_순서가_보존된다(self):
+        # 안정 정렬이 아니면 a1/a2 나 c1/c2 의 순서가 뒤집힐 수 있다.
+        # 2순위 비교 기준 없이 이 순서가 나오는 것이 안정성의 증거다.
+        result = self.messages("log --sort-by=author")
+        self.assertLess(result.index("a1"), result.index("a2"))
+        self.assertLess(result.index("c1"), result.index("c2"))
+
+    def test_날짜_기준_정렬은_만들어진_순서다(self):
+        self.assertEqual(
+            self.messages("log --sort-by=date"), ["c1", "c2", "a1", "b1", "a2"]
+        )
+
+    def test_대소문자를_가리지_않는다(self):
+        self.assertEqual(
+            self.messages("LOG --sort-by=author"),
+            self.messages("log --sort-by=author"),
+        )
+
+    def test_커밋이_없으면_정렬해도_같은_안내(self):
+        empty = Repository()
+        run_line(empty, 'init "Alice"')
+        self.assertEqual(run_line(empty, "log --sort-by=author"), "No commits yet.")
 
 
 class DivergedRepo(unittest.TestCase):

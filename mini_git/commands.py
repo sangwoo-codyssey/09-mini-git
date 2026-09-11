@@ -14,6 +14,7 @@ from mini_git.errors import InvalidArgs, UnknownCommand, UnknownCommit
 from mini_git.graph import ancestors, shortest_path, topological_order
 from mini_git.parser import Command
 from mini_git.repository import Commit, Repository
+from mini_git.sorting import merge_sort
 
 Handler = Callable[[Repository, Command], str]
 
@@ -91,18 +92,41 @@ def _format_commit(commit: Commit, branches: list[str]) -> str:
     )
 
 
-def handle_log(repo: Repository, command: Command) -> str:
-    """LOG — 부모가 자식보다 먼저 오도록 커밋을 출력한다.
+SORT_KEYS: dict[str, Callable[[Commit], object]] = {
+    "date": lambda commit: commit.timestamp,
+    "author": lambda commit: commit.author,
+}
 
-    "최신순" 이 아니다. 과제 §4 가 위상 정렬 성격의 출력을 요구한다.
+
+def handle_log(repo: Repository, command: Command) -> str:
+    """LOG [--sort-by=date|author] — 커밋 목록을 출력한다.
+
+    옵션이 없으면 위상 순서다 — "최신순" 이 아니라 **부모가 자식보다 먼저**.
+    과제 §4 가 그렇게 요구한다.
+
+    `--sort-by` 는 그 위상 순서를 입력으로 받아 **안정 정렬**을 한 번 더 얹는다.
+    그래서 키가 같은 커밋들(같은 작성자, 같은 초)은 위상 순서를 그대로 유지한다.
+    2순위 비교 기준을 따로 만들지 않아도 출력이 흔들리지 않는 이유다.
     """
     repo.require_initialized()
-    if command.args or command.options:
-        raise InvalidArgs("LOG takes no arguments")
+    if command.args:
+        raise InvalidArgs("LOG takes no positional arguments")
+
+    unknown = [name for name in command.options if name != "sort-by"]
+    if unknown:
+        raise InvalidArgs(f"LOG has no such option: --{unknown[0]}")
+
+    sort_by = command.options.get("sort-by")
+    if sort_by is not None and sort_by not in SORT_KEYS:
+        allowed = "|".join(SORT_KEYS)
+        raise InvalidArgs(f"LOG --sort-by must be one of: {allowed}")
 
     order = topological_order(repo.commits)
     if not order:
         return "No commits yet."
+
+    if sort_by is not None:
+        order = merge_sort(order, key=SORT_KEYS[sort_by])
 
     tips = _branch_tips(repo)
     return "\n".join(_format_commit(c, tips.get(c.hash, [])) for c in order)
