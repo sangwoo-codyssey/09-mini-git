@@ -10,8 +10,8 @@
 
 from typing import Callable
 
-from mini_git.errors import InvalidArgs, UnknownCommand
-from mini_git.graph import topological_order
+from mini_git.errors import InvalidArgs, UnknownCommand, UnknownCommit
+from mini_git.graph import ancestors, shortest_path, topological_order
 from mini_git.parser import Command
 from mini_git.repository import Commit, Repository
 
@@ -25,7 +25,7 @@ def _one_arg(command: Command, what: str) -> str:
     `INIT Alice Kim` 을 치면 인자가 둘이 되는데, 조용히 첫 번째만 쓰면 사용자는
     이름이 잘린 것을 눈치채지 못한다.
     """
-    if len(command.args) != 1:
+    if len(command.args) != 1 or command.options:
         raise InvalidArgs(
             f"{command.name.upper()} takes exactly one argument (<{what}>); "
             "quote it if it contains spaces"
@@ -108,12 +108,61 @@ def handle_log(repo: Repository, command: Command) -> str:
     return "\n".join(_format_commit(c, tips.get(c.hash, [])) for c in order)
 
 
+def _require_commit(repo: Repository, commit_hash: str) -> str:
+    """그 해시의 커밋이 실제로 있는지 확인한다. 없으면 UnknownCommit."""
+    if commit_hash not in repo.commits:
+        raise UnknownCommit(commit_hash)
+    return commit_hash
+
+
+def _format_many(repo: Repository, commits: dict[str, Commit]) -> str:
+    """여러 커밋을 위상 순서로 그린다 (LOG 와 같은 형식)."""
+    tips = _branch_tips(repo)
+    return "\n".join(
+        _format_commit(c, tips.get(c.hash, [])) for c in topological_order(commits)
+    )
+
+
+def handle_ancestors(repo: Repository, command: Command) -> str:
+    """ANCESTORS <commit_hash> — 도달 가능한 모든 조상을 출력한다.
+
+    자기 자신은 조상이 아니므로 빼고, 부모 방향으로만 올라간다.
+    """
+    repo.require_initialized()
+    commit_hash = _require_commit(repo, _one_arg(command, "commit_hash"))
+
+    found = ancestors(repo.commits, commit_hash)
+    if not found:
+        return "No ancestors."
+    return _format_many(repo, found)
+
+
+def handle_path(repo: Repository, command: Command) -> str:
+    """PATH <commit1> <commit2> — 무방향 최단 경로를 출력한다.
+
+    경로가 없으면 과제가 지정한 문구 그대로 `No path` 를 낸다.
+    """
+    repo.require_initialized()
+    if len(command.args) != 2 or command.options:
+        raise InvalidArgs("PATH takes exactly two arguments (<commit1> <commit2>)")
+
+    source = _require_commit(repo, command.args[0])
+    target = _require_commit(repo, command.args[1])
+
+    path = shortest_path(repo.commits, source, target)
+    if path is None:
+        return "No path"
+    return "Path: " + " -> ".join(path)
+
+
 HANDLERS: dict[str, Handler] = {
     "init": handle_init,
     "branch": handle_branch,
     "switch": handle_switch,
     "commit": handle_commit,
     "log": handle_log,
+    "ancestors": handle_ancestors,
+    "path": handle_path,
 }
 
 
