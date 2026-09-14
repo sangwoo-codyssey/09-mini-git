@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass, field
 
 from mini_git.errors import BranchExists, NotInitialized, UnknownBranch
+from mini_git.search import InvertedIndex
 
 DEFAULT_BRANCH = "main"
 HASH_LENGTH = 6
@@ -62,6 +63,7 @@ class Repository:
     branches: dict[str, str | None] = field(default_factory=dict)
     head: str | None = None
     author: str | None = None
+    index: InvertedIndex = field(default_factory=InvertedIndex)
     _counter: int = 0
 
     # ---- 상태 확인 -------------------------------------------------------
@@ -96,6 +98,7 @@ class Repository:
         self.branches = {DEFAULT_BRANCH: None}
         self.head = DEFAULT_BRANCH
         self.author = author
+        self.index.clear()     # 안 비우면 지워진 커밋이 검색에 유령으로 남는다
         self._counter = 0
 
     def create_branch(self, name: str) -> None:
@@ -126,6 +129,7 @@ class Repository:
             ② Commit 을 만든다
             ③ commits 에 등록한다
             ④ branches[head] 를 새 해시로 민다   ← 빠뜨리기 쉬운 곳
+            ⑤ 역색인을 갱신한다 (과제 §4 COMMIT 항목)
         """
         self.require_initialized()
         parent = self.branches[self.head]
@@ -141,6 +145,7 @@ class Repository:
         )
         self.commits[commit.hash] = commit
         self.branches[self.head] = commit.hash
+        self.index.add(commit)
         return commit
 
     # ---- 해시 -----------------------------------------------------------

@@ -179,6 +179,48 @@ def handle_path(repo: Repository, command: Command) -> str:
     return "Path: " + " -> ".join(path)
 
 
+def handle_search(repo: Repository, command: Command) -> str:
+    """SEARCH <keyword> | SEARCH --author=<name> — 커밋을 찾는다.
+
+    둘 중 정확히 하나여야 한다. 둘 다 주면 무엇을 원하는지 모호하고, 조용히
+    한쪽만 쓰면 사용자가 나머지가 무시된 것을 눈치채지 못한다.
+
+    찾은 커밋은 위상 순서로 출력한다 — LOG 와 같은 규칙이라 부모가 자식보다
+    먼저 나온다. 검색 결과에도 이 순서가 유지되는 편이 읽기에 낫다.
+
+    후보를 가져오는 것은 역색인이다(과제 §4 "모든 커밋을 순회하지 않고").
+    순회 버전은 `search.py` 에 그대로 남아 있고, 테스트가 둘의 결과를 맞춰 본다.
+    """
+    repo.require_initialized()
+
+    unknown = [name for name in command.options if name != "author"]
+    if unknown:
+        raise InvalidArgs(f"SEARCH has no such option: --{unknown[0]}")
+
+    author = command.options.get("author")
+    if author is not None and command.args:
+        raise InvalidArgs("SEARCH takes either a keyword or --author, not both")
+
+    if author is not None:
+        found = repo.index.find_by_author(author)
+        subject = f"--author={author}"
+    else:
+        if len(command.args) != 1:
+            raise InvalidArgs(
+                "SEARCH takes exactly one keyword (or --author=<name>); "
+                "quote it if it contains spaces"
+            )
+        found = repo.index.find_by_keyword(command.args[0])
+        subject = command.args[0]
+
+    if not found:
+        return f"No commits found for {subject}."
+
+    noun = "commit" if len(found) == 1 else "commits"
+    body = _format_many(repo, {h: repo.commits[h] for h in found})
+    return f"Found {len(found)} {noun}:\n{body}"
+
+
 HANDLERS: dict[str, Handler] = {
     "init": handle_init,
     "branch": handle_branch,
@@ -187,6 +229,7 @@ HANDLERS: dict[str, Handler] = {
     "log": handle_log,
     "ancestors": handle_ancestors,
     "path": handle_path,
+    "search": handle_search,
 }
 
 

@@ -297,6 +297,42 @@ class PathCommandTest(DivergedRepo):
             run_line(self.repo, f"path {self.base} deadbe")
 
 
+class SearchCommandTest(DivergedRepo):
+    """SEARCH 는 키워드 또는 --author 중 하나를 받는다."""
+
+    def test_키워드로_찾는다(self):
+        output = run_line(self.repo, "search login")
+        self.assertIn("Found 1 commit:", output)
+        self.assertIn("Add login feature", output)
+
+    def test_여러_건이면_복수형(self):
+        output = run_line(self.repo, "search feature")
+        self.assertIn("Found 2 commits:", output)
+
+    def test_작성자로_찾는다(self):
+        output = run_line(self.repo, 'search --author="Alice"')
+        self.assertIn("Found 3 commits:", output)
+
+    def test_없으면_알려준다(self):
+        self.assertIn("No commits found", run_line(self.repo, "search deploy"))
+
+    def test_키워드와_author_를_같이_주면_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'search login --author="Alice"')
+
+    def test_인자가_없으면_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "search")
+
+    def test_모르는_옵션은_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "search --since=2024")
+
+    def test_INIT_전에는_거절된다(self):
+        with self.assertRaises(NotInitialized):
+            run_line(Repository(), "search login")
+
+
 class ScenarioTest(unittest.TestCase):
     """과제 §8 결과 예시의 앞부분을 그대로 따라간다."""
 
