@@ -46,6 +46,8 @@ class TopologicalOrderTest(unittest.TestCase):
         self.assertEqual(len(order), len(commits), "커밋이 빠지거나 중복됐다")
         for commit in order:
             for parent in commit.parents:
+                if parent not in commits:
+                    continue  # 그래프 밖의 부모는 순서를 따질 대상이 아니다
                 self.assertLess(
                     position[parent],
                     position[commit.hash],
@@ -104,6 +106,24 @@ class TopologicalOrderTest(unittest.TestCase):
         for _ in range(5):
             self.assertEqual([c.hash for c in topological_order(commits)], first)
 
+    def test_부모가_자식보다_늦게_만들어져도_먼저_나온다(self):
+        # build() 는 나열 순서대로 timestamp 를 매기고, 다른 테스트들은 부모를
+        # 먼저 나열한다. 그래서 timestamp 순서가 우연히 위상 순서와 일치해,
+        # "전부 timestamp 로 정렬" 하기만 해도 통과해 버린다.
+        # 여기서는 자식을 먼저 나열해 그 우연을 깬다 — 부모의 timestamp 가 더 크다.
+        commits = build(("bb", ("aa",)), ("aa", ()))
+        self.assertEqual(commits["bb"].timestamp, 0.0)
+        self.assertEqual(commits["aa"].timestamp, 1.0)
+
+        order = self.assert_parents_first(commits)
+        self.assertEqual([c.hash for c in order], ["aa", "bb"])
+
+    def test_timestamp_가_거꾸로인_갈라진_그래프(self):
+        #   cc ──┬── bb ──┬── aa      나열은 자식부터, timestamp 도 자식이 작다
+        #   dd ──┘
+        commits = build(("aa", ("bb", "dd")), ("bb", ("cc",)), ("cc", ()), ("dd", ()))
+        self.assert_parents_first(commits)
+
     def test_저장소에_없는_부모는_간선에서_뺀다(self):
         # 부모 해시가 commits 에 없으면 진입차수가 영원히 0이 안 되어
         # 그 커밋이 출력에서 통째로 사라진다. 그 회귀를 막는다.
@@ -114,6 +134,20 @@ class TopologicalOrderTest(unittest.TestCase):
             )
         }
         self.assertEqual([c.hash for c in topological_order(orphan)], ["b"])
+
+    def test_없는_부모를_가진_커밋이_진짜_부모도_기다린다(self):
+        # 위 테스트는 커밋이 하나뿐이라, 진입차수를 잘못 세도 통과할 수 있다.
+        # (후보가 하나면 무엇을 꺼내든 답이 같다.)
+        # 부모 하나는 저장소에 있고 하나는 없는 커밋으로 그 구멍을 막는다.
+        commits = {
+            "cc": Commit(hash="cc", message="자식", author="Alice",
+                         timestamp=0.0, parents=("aa", "사라진부모")),
+            "aa": Commit(hash="aa", message="부모", author="Alice",
+                         timestamp=9.0, parents=()),
+        }
+        self.assertEqual(
+            [c.hash for c in self.assert_parents_first(commits)], ["aa", "cc"]
+        )
 
 
 def diamond() -> dict[str, Commit]:
@@ -206,6 +240,13 @@ class ShortestPathTest(unittest.TestCase):
             ("aa", ()), ("bb", ("aa",)), ("cc", ("bb",)), ("dd", ("aa", "cc"))
         )
         self.assertEqual(shortest_path(commits, "aa", "dd"), ["aa", "dd"])
+
+    def test_부모가_둘인_커밋을_지나는_최단_경로(self):
+        #   aa - bb - cc - dd   그리고   aa - cc  로 바로 잇는 간선 (cc 의 부모는 aa, bb 둘)
+        commits = build(
+            ("aa", ()), ("bb", ("aa",)), ("cc", ("aa", "bb")), ("dd", ("cc",))
+        )
+        self.assertEqual(shortest_path(commits, "aa", "dd"), ["aa", "cc", "dd"])
 
 
 if __name__ == "__main__":
