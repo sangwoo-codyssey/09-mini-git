@@ -51,12 +51,18 @@ case "${1:-run}" in
     shift
     exec "$PYTHON" -m unittest discover "$@"
     ;;
+  bench)
+    check_python
+    cd "$SCRIPT_DIR"
+    exec "$PYTHON" benchmark.py
+    ;;
   *)
-    echo "사용법: $0 {run|test}"
+    echo "사용법: $0 {run|test|bench}"
     echo ""
     echo "  $0 run                # mini-git REPL 실행 (기본값)"
     echo "  $0 test               # unittest 회귀 테스트"
     echo "  $0 test -k tokenize   # 추가 인자는 unittest 로 그대로 전달"
+    echo "  $0 bench              # 순회 검색 vs 역색인 성능 비교"
     echo ""
     echo "환경변수:"
     echo "  PYTHON   사용할 파이썬 실행 파일 (기본: python3)"
