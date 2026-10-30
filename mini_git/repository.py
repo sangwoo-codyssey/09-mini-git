@@ -1,3 +1,10 @@
+"""커밋 그래프의 저장소.
+
+커밋(`Commit`)과, 커밋 · 브랜치 · HEAD · 현재 사용자 · 역색인을 한데 묶은 상태(`Repository`)를 둔다.
+INIT · BRANCH · SWITCH · COMMIT 이 상태를 바꾸는 규칙은 `Repository` 의 메서드다.
+그래프를 읽는 알고리즘(위상 정렬, BFS)은 graph.py 가 맡고, 여기서는 상태만 다룬다.
+"""
+
 import hashlib
 import time
 from dataclasses import dataclass, field
@@ -11,6 +18,11 @@ HASH_LENGTH = 6
 
 @dataclass(frozen=True)
 class Commit:
+    """커밋 하나. 만든 뒤에는 바꿀 수 없다(frozen).
+
+    parents 는 부모 커밋 해시의 튜플이다. 첫 커밋이면 비어 있다.
+    부모는 늘 이미 저장된 커밋이고 나중에 바꿀 수도 없으므로, 커밋 그래프에는 사이클이 생기지 않는다(DAG).
+    """
 
     hash: str
     message: str
@@ -20,11 +32,20 @@ class Commit:
 
     @property
     def formatted_time(self) -> str:
+        """timestamp 를 `YYYY-MM-DD HH:MM:SS` 형식의 지역 시각 문자열로 돌려준다. LOG 출력에 쓴다."""
         return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.timestamp))
 
 
 @dataclass
 class Repository:
+    """저장소 상태와, 그 상태를 바꾸는 규칙.
+
+    commits 는 해시 → Commit 이라 해시로 바로 찾는다.
+    branches 는 브랜치 이름 → 그 브랜치의 끝 커밋 해시이고, 아직 커밋이 없으면 None 이다.
+    head 는 지금 브랜치의 이름이다(해시가 아니다). INIT 전에는 None 이다.
+    index 는 키워드 · 작성자 역색인이고, commit 이 커밋을 저장할 때 같이 갱신한다.
+    _counter 는 해시가 겹칠 때 재료를 바꾸는 데 쓴다.
+    """
 
     commits: dict[str, Commit] = field(default_factory=dict)
     branches: dict[str, str | None] = field(default_factory=dict)
@@ -36,14 +57,17 @@ class Repository:
 
     @property
     def initialized(self) -> bool:
+        """INIT 을 했으면 True. head 가 정해졌는지로 판단한다."""
         return self.head is not None
 
     def require_initialized(self) -> None:
+        """INIT 전이면 NotInitialized 를 낸다. 상태를 읽거나 바꾸는 명령이 맨 앞에서 부른다."""
         if not self.initialized:
             raise NotInitialized()
 
     @property
     def head_commit(self) -> str | None:
+        """현재 브랜치의 끝 커밋 해시. 아직 커밋이 없으면 None, INIT 전이면 NotInitialized."""
         self.require_initialized()
         return self.branches[self.head]
 
@@ -58,8 +82,8 @@ class Repository:
         self.branches = {DEFAULT_BRANCH: None}
         self.head = DEFAULT_BRANCH
         self.author = author
-        self.index.clear()  # 역색인 — 학습목표 5 에서 다룬다
-        self._counter = 0  # 해시 카운터 — 해시 단계에서 다룬다
+        self.index.clear()
+        self._counter = 0
 
     def create_branch(self, name: str) -> None:
         """현재 브랜치가 가리키는 커밋에서 새 브랜치 name 을 만든다.
@@ -89,6 +113,7 @@ class Repository:
 
         부모는 현재 브랜치가 가리키던 커밋이다. 첫 커밋이면 부모가 없다.
         새 커밋을 commits 에 해시를 키로 저장하고, 현재 브랜치를 새 커밋으로 옮긴다.
+        같은 자리에서 역색인(index)에도 넣어, 검색이 바로 새 커밋을 찾는다.
         HEAD 는 그대로다. init 전이면 NotInitialized 를 낸다.
         """
         self.require_initialized()
@@ -102,7 +127,7 @@ class Repository:
         commit = Commit(commit_hash, message, self.author, timestamp, parents)
         self.commits[commit_hash] = commit
         self.branches[self.head] = commit_hash
-        self.index.add(commit)  # 역색인 — 학습목표 5 에서 다룬다
+        self.index.add(commit)
         return commit
 
 
