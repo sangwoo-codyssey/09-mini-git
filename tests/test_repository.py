@@ -44,14 +44,18 @@ class InitTest(unittest.TestCase):
         self.assertIsNone(repo.branches["main"])
         self.assertEqual(repo.author, "Bob")
 
-    def test_INIT_전에는_다른_명령이_거절된다(self):
-        repo = Repository()
+    # 한 테스트에 셋을 몰아 두면 앞 명령이 막힐 때 뒤 명령 검사가 가려진다
+    def test_INIT_전에는_commit_이_거절된다(self):
         with self.assertRaises(NotInitialized):
-            repo.commit("nope")
+            Repository().commit("nope")
+
+    def test_INIT_전에는_branch_가_거절된다(self):
         with self.assertRaises(NotInitialized):
-            repo.create_branch("feature")
+            Repository().create_branch("feature")
+
+    def test_INIT_전에는_switch_가_거절된다(self):
         with self.assertRaises(NotInitialized):
-            repo.switch("main")
+            Repository().switch("main")
 
 
 class CommitTest(unittest.TestCase):
