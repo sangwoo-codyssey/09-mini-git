@@ -60,6 +60,11 @@ class InitCommandTest(unittest.TestCase):
         with self.assertRaises(InvalidArgs):
             run_line(self.repo, "init Alice Kim")
 
+    def test_빈_이름은_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'init ""')
+        self.assertFalse(self.repo.initialized)
+
 
 class CommitCommandTest(unittest.TestCase):
     def setUp(self):
@@ -78,6 +83,17 @@ class CommitCommandTest(unittest.TestCase):
     def test_인자가_없으면_거절된다(self):
         with self.assertRaises(InvalidArgs):
             run_line(self.repo, "commit")
+
+    def test_빈_메시지는_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'commit ""')
+        self.assertEqual(self.repo.commits, {})
+
+    def test_공백뿐인_메시지도_거절된다(self):
+        # 따옴표 안의 공백은 살아남으므로 파서는 통과한다. 메시지로서는 비어 있다.
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'commit "   "')
+        self.assertEqual(self.repo.commits, {})
 
 
 class BranchSwitchCommandTest(unittest.TestCase):
@@ -100,6 +116,11 @@ class BranchSwitchCommandTest(unittest.TestCase):
     def test_없는_브랜치로는_전환할_수_없다(self):
         with self.assertRaises(UnknownBranch):
             run_line(self.repo, "switch nonexistent")
+
+    def test_빈_브랜치_이름은_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'branch ""')
+        self.assertNotIn("", self.repo.branches)
 
 
 class LogCommandTest(unittest.TestCase):
@@ -169,6 +190,11 @@ class LogCommandTest(unittest.TestCase):
     def test_sort_by_값이_이상하면_거절된다(self):
         with self.assertRaises(InvalidArgs):
             run_line(self.repo, "log --sort-by=hash")
+
+    def test_sort_by_에_등호가_없으면_거절된다(self):
+        # "=" 가 없으면 파서가 옵션이 아니라 위치 인자로 받는다. 어느 쪽이든 거절이다.
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "log --sort-by")
 
 
 class LogSortByTest(unittest.TestCase):
@@ -327,6 +353,14 @@ class SearchCommandTest(DivergedRepo):
     def test_모르는_옵션은_거절된다(self):
         with self.assertRaises(InvalidArgs):
             run_line(self.repo, "search --since=2024")
+
+    def test_빈_키워드는_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, 'search ""')
+
+    def test_author_값이_비면_거절된다(self):
+        with self.assertRaises(InvalidArgs):
+            run_line(self.repo, "search --author=")
 
     def test_INIT_전에는_거절된다(self):
         with self.assertRaises(NotInitialized):
