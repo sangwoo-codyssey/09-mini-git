@@ -22,7 +22,7 @@ Python **3.10 이상**이 필요하다. macOS 기본 `python3` 는 3.9 라서, `
 
 ```bash
 ./run.sh run          # REPL 실행 (= python main.py)
-./run.sh test         # 테스트 160개
+./run.sh test         # 테스트 170개
 ./run.sh bench        # 순회 검색 vs 역색인 측정
 PYTHON=python3.12 ./run.sh run
 ```
@@ -51,6 +51,8 @@ PYTHON=python3.12 ./run.sh run
   여는 따옴표와 같은 문자로만 닫히므로 `"it's fine"` 안의 `'` 는 그냥 글자다.
 - 옵션은 `--key=value` 하나의 형식만 쓴다.
 - 키워드 검색은 공백으로 쪼갠 단어 단위이고 대소문자를 가리지 않는다. `SEARCH Login` 도 `login` 을 찾는다.
+  구두점은 떼지 않는다(과제의 최소 기준 split + lower 그대로). `Fix: login` 의 토큰은 `fix:` 라서 `SEARCH fix` 로는 걸리지 않는다.
+- 값이 비어 있는 인자는 받지 않는다. `COMMIT ""` · `COMMIT "   "` · `BRANCH ""` · `SEARCH --author=` 는 `Invalid args` 다.
 
 ### 에러 메시지
 
@@ -60,7 +62,7 @@ PYTHON=python3.12 ./run.sh run
 | 메시지 | 언제 |
 |---|---|
 | `Not initialized: run INIT <user_name> first` | `INIT` 전에 다른 명령 |
-| `Invalid args: …` | 인자 개수 · 형식이 틀림, 모르는 옵션, `--sort-by` 값이 `date` · `author` 가 아님 |
+| `Invalid args: …` | 인자 개수 · 형식이 틀림, 값이 비어 있음, 모르는 옵션, `--sort-by` 값이 `date` · `author` 가 아님 |
 | `Unknown command: <name>` | 없는 명령 |
 | `Unknown branch: <name>` | `SWITCH` 할 브랜치가 없음 |
 | `Unknown commit: <hash>` | `PATH` · `ANCESTORS` 에 없는 해시 |
@@ -70,6 +72,7 @@ PYTHON=python3.12 ./run.sh run
 ## 동작 예시
 
 해시는 커밋 시각이 재료에 들어가서 실행할 때마다 달라진다. 아래는 실제 실행 결과다.
+커밋 사이에 1초쯤 두고 입력해서 `--sort-by=date` 를 시각으로 확인할 수 있다.
 
 ```
 mini-git> LOG
@@ -79,55 +82,104 @@ Initialized repository.
 Current branch: main
 Current user: Alice
 mini-git> COMMIT "Add login page"
-[main ef3c06] Add login page
+[main 1ea39d] Add login page
 mini-git> BRANCH feature
 Created branch: feature
 mini-git> SWITCH feature
 Switched to branch: feature
 mini-git> COMMIT "Fix login bug"
-[feature a25dab] Fix login bug
+[feature 89ba40] Fix login bug
 mini-git> COMMIT "Add search index"
-[feature 3923ea] Add search index
+[feature 2414e1] Add search index
 mini-git> SWITCH main
 Switched to branch: main
 mini-git> COMMIT "Update README"
-[main ad1517] Update README
+[main 3d3ce3] Update README
 mini-git> LOG
-commit ef3c06 (Alice, 2026-10-30 13:12:00)
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
 Add login page
-commit a25dab (Alice, 2026-10-30 13:12:00)
-Fix login bug
-commit 3923ea (Alice, 2026-10-30 13:12:00) [feature]
-Add search index
-commit ad1517 (Alice, 2026-10-30 13:12:00) [main]
+commit 3d3ce3 (Alice, 2026-10-31 13:02:38) [main]
 Update README
-mini-git> PATH 3923ea ad1517
-Path: 3923ea -> a25dab -> ef3c06 -> ad1517
-mini-git> ANCESTORS 3923ea
-commit ef3c06 (Alice, 2026-10-30 13:12:00)
-Add login page
-commit a25dab (Alice, 2026-10-30 13:12:00)
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
 Fix login bug
-mini-git> ANCESTORS ef3c06
+commit 2414e1 (Alice, 2026-10-31 13:02:37) [feature]
+Add search index
+mini-git> LOG --sort-by=date
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
+Add login page
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
+Fix login bug
+commit 2414e1 (Alice, 2026-10-31 13:02:37) [feature]
+Add search index
+commit 3d3ce3 (Alice, 2026-10-31 13:02:38) [main]
+Update README
+mini-git> LOG --sort-by=author
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
+Add login page
+commit 3d3ce3 (Alice, 2026-10-31 13:02:38) [main]
+Update README
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
+Fix login bug
+commit 2414e1 (Alice, 2026-10-31 13:02:37) [feature]
+Add search index
+mini-git> PATH 2414e1 3d3ce3
+Path: 2414e1 -> 89ba40 -> 1ea39d -> 3d3ce3
+mini-git> ANCESTORS 2414e1
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
+Add login page
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
+Fix login bug
+mini-git> ANCESTORS 1ea39d
 No ancestors.
 mini-git> SEARCH login
 Found 2 commits:
-commit ef3c06 (Alice, 2026-10-30 13:12:00)
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
 Add login page
-commit a25dab (Alice, 2026-10-30 13:12:00)
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
 Fix login bug
+mini-git> SEARCH --author=alice
+Found 4 commits:
+commit 1ea39d (Alice, 2026-10-31 13:02:35)
+Add login page
+commit 3d3ce3 (Alice, 2026-10-31 13:02:38) [main]
+Update README
+commit 89ba40 (Alice, 2026-10-31 13:02:36)
+Fix login bug
+commit 2414e1 (Alice, 2026-10-31 13:02:37) [feature]
+Add search index
 mini-git> SWITCH nope
 Unknown branch: nope
-mini-git> PATH ef3c06 zzzzzz
+mini-git> PATH 1ea39d zzzzzz
 Unknown commit: zzzzzz
+mini-git> BRANCH feature
+Branch already exists: feature
 mini-git> LOG --sort-by=size
 Invalid args: LOG --sort-by must be one of: date|author
 ```
 
+위 시연이 만든 그래프다.
+
+![시연이 만든 커밋 그래프. 화살표는 자식이 부모를 가리키는 parents 방향, 가로 위치는 만든 시각, 파란 번호는 LOG 순서](docs/commit-graph.svg)
+
+실선 화살표는 `parents` 방향(자식 → 부모)이고, 가로 위치는 만든 시각이라 왼쪽부터 읽으면 `--sort-by=date` 순서다.
+파란 번호는 `LOG` 순서다. 점선은 브랜치가 끝 커밋을, HEAD 가 커밋이 아니라 브랜치 이름(`main`)을 가리키는 것이다.
+
+| 해시 | 메시지 | 부모 (`parents`) | 끝으로 가리키는 브랜치 |
+|---|---|---|---|
+| `1ea39d` | Add login page | 없음 (뿌리) | |
+| `89ba40` | Fix login bug | `1ea39d` | |
+| `2414e1` | Add search index | `89ba40` | `feature` |
+| `3d3ce3` | Update README | `1ea39d` | `main` (HEAD 가 가리키는 브랜치) |
+
 - `LOG` 의 `[feature]` · `[main]` 은 그 커밋을 끝으로 가리키는 브랜치다.
-- `LOG` 순서: `ef3c06` 이 나간 뒤 후보는 `a25dab` 와 `ad1517` 이고, 해시가 작은 `a25dab` 가 먼저다.
-  그다음 후보 `3923ea` · `ad1517` 중 `3923ea`. 어느 줄을 봐도 부모가 위에 있다.
-- `PATH` 는 갈라진 두 브랜치의 끝을 공통 조상 `ef3c06` 을 거쳐 잇는다.
+- `LOG` 순서: `1ea39d` 가 나간 뒤 후보는 `89ba40` 과 `3d3ce3` 이고, 해시가 작은 `3d3ce3` 이 먼저다.
+  그다음 후보는 `89ba40` 하나다(`2414e1` 은 부모 `89ba40` 이 아직 남아 있다). 어느 줄을 봐도 부모가 위에 있다.
+- 그래서 `LOG` 는 시간순이 아니다. `3d3ce3` 은 가장 늦게 만들었지만 두 번째로 나온다. 만든 순서는 `--sort-by=date` 다.
+- `--sort-by=author` 는 작성자가 모두 Alice 라 비교 키가 전부 같고, 안정 정렬이라 입력인 위상 순서가 그대로 남는다.
+  `INIT` 이 저장소를 초기화하므로 CLI 한 세션의 작성자는 한 명이다. 여러 작성자 정렬은 `LogSortByTest` 가
+  저장소의 `author` 를 바꿔 가며 확인한다.
+- `SEARCH --author=alice` 는 대소문자를 가리지 않고 `Alice` 의 커밋 4개를 찾는다. 결과는 `LOG` 와 같은 위상 순서다.
+- `PATH` 는 갈라진 두 브랜치의 끝을 공통 조상 `1ea39d` 를 거쳐 잇는다.
 
 `No path` 는 뿌리가 둘일 때 나온다. 커밋 전에 만든 브랜치는 아무 커밋도 가리키지 않으므로,
 거기서 한 첫 커밋은 부모가 없는 두 번째 뿌리가 된다.
@@ -172,6 +224,8 @@ commands.execute ─ HANDLERS[name] 로 핸들러를 고른다. 인자 개수 �
 ├── main.py              진입점 → cli.main()
 ├── run.sh               run / test / bench
 ├── benchmark.py         순회 검색 vs 역색인 측정
+├── docs/
+│   └── commit-graph.svg 동작 예시의 커밋 그래프
 ├── mini_git/
 │   ├── cli.py           REPL 루프, run_line (테스트 진입점)
 │   ├── parser.py        한 줄 → Command (따옴표 · 대소문자 · --key=value)
@@ -181,7 +235,7 @@ commands.execute ─ HANDLERS[name] 로 핸들러를 고른다. 인자 개수 �
 │   ├── sorting.py       병합 정렬
 │   ├── search.py        순회 검색, 역색인
 │   └── errors.py        사용자 입력 오류 (MiniGitError 계열)
-└── tests/               160개
+└── tests/               170개
 ```
 
 층을 나눈 기준은 "누가 무엇을 아는가" 다.
@@ -253,6 +307,8 @@ def _new_hash(self, message, timestamp, parents) -> str:
 - 앞 6자리(16⁶ = 16,777,216가지)만 쓰므로 겹칠 수 있다. 이미 있으면 `_counter` 를 올려 재료를 바꾸고 다시 만든다.
   그래서 돌려주는 해시는 세션 안에서 늘 유일하다. 이 재시도 경로는 드물게만 밟히므로
   `test_절단_충돌이_나면_다른_해시로_다시_만든다` 가 충돌을 직접 심어 확인한다.
+- 재시도 횟수에 상한은 두지 않았다. 한 번 시도가 겹칠 확률은 (이미 있는 커밋 수 / 16⁶) 이라 커밋 1만 개에서도 약 0.06% 이고,
+  `_counter` 가 오를 때마다 재료가 달라지므로 연달아 겹칠 확률은 그 거듭제곱으로 줄어든다.
 - `_new_hash` 는 해시를 돌려주기만 하고, 저장은 `commit()` 이 한다.
 
 ### 역색인 — 언제, 어떻게 갱신하나
@@ -269,7 +325,7 @@ for token in tokenize_message(commit.message):          # split + lower, set 이
 self.by_author.setdefault(commit.author.lower(), []).append(commit.hash)
 ```
 
-- 두 색인: `by_keyword` `{"login": ["ef3c06", "a25dab"], …}`, `by_author` `{"alice": […]}`. 키는 소문자다.
+- 두 색인: `by_keyword` `{"login": ["1ea39d", "89ba40"], …}`, `by_author` `{"alice": […]}`. 키는 소문자다.
 - 커밋을 저장한 직후 같은 `commit()` 안에서 갱신한다. `INIT` 은 `index.clear()` 로 비운다.
   커밋은 지워지지 않으므로 추가만 있다.
 - 저장과 색인이 어긋나면 에러 없이 검색 결과만 틀린다. 그래서 순회 검색을 지우지 않고 남겨 두고,
@@ -373,7 +429,7 @@ def shortest_path(commits, source, target):
 ```
 
 - **무방향인 이유**: 과제가 "커밋-부모 연결을 무방향 간선으로 간주" 하라고 정했다. 방향을 지키면 조상과 자손 사이만
-  이어지고, 갈라진 브랜치의 두 끝(위 예시의 `3923ea` 와 `ad1517`)은 서로 닿지 않는다. 무방향이면 공통 조상으로
+  이어지고, 갈라진 브랜치의 두 끝(위 예시의 `2414e1` 와 `3d3ce3`)은 서로 닿지 않는다. 무방향이면 공통 조상으로
   올라갔다가 내려와서 잇는다.
 - **BFS 라서 최단이다**: 줄 앞에서 꺼내므로(`pop(0)`) 출발점에서 가까운 커밋부터 한 겹씩 본다.
   처음 도착한 경로가 곧 간선 수가 가장 적은 경로다. 뒤에서 꺼내면(`pop()`) 먼 쪽으로 파고들다 먼저 도착해
@@ -520,18 +576,18 @@ aa(Bob, 뿌리) → bb(Alice), cc(Bob),  bb → dd(Alice)
 ## 테스트
 
 ```bash
-./run.sh test                    # 160개
+./run.sh test                    # 170개
 ./run.sh test -k ShortestPath    # 일부만 (unittest 인자를 그대로 넘긴다)
 ```
 
 | 파일 | 개수 | 다루는 것 |
 |---|---:|---|
 | `test_parser.py` | 16 | 따옴표 안의 공백 · 대소문자 정규화 · 옵션 분리 · 빈 줄 |
-| `test_repository.py` | 26 | INIT · BRANCH · SWITCH · COMMIT 상태 변화, 해시 유일성과 충돌 재시도 |
-| `test_graph.py` | 28 | 위상 정렬 성질 · 무방향 인접 목록 · 조상 · 최단 경로와 사전순 · 경로 없음 |
+| `test_repository.py` | 27 | INIT · BRANCH · SWITCH · COMMIT 상태 변화, 해시 유일성과 충돌 재시도, 브랜치·HEAD 가 가리키는 곳의 일관성 |
+| `test_graph.py` | 29 | 위상 정렬 성질과 사이클 거절 · 무방향 인접 목록 · 조상 · 최단 경로와 사전순 · 경로 없음 |
 | `test_sorting.py` | 15 | 병합 정렬 결과, 안정성, 원본 보존, 비교 기준 바꾸기 |
-| `test_search.py` | 28 | 토큰화 · 순회 · 역색인, 순회와 역색인의 결과 일치 |
-| `test_commands.py` | 47 | 명령별 출력 형식과 에러 메시지, INIT 전 거절 |
+| `test_search.py` | 29 | 토큰화(구두점 포함) · 순회 · 역색인, 순회와 역색인의 결과 일치 |
+| `test_commands.py` | 54 | 명령별 출력 형식과 에러 메시지, INIT 전 거절, 빈 값 · 잘못된 옵션 거절 |
 
 모든 테스트가 실제 코드를 부른다. mock 이나 스텁은 쓰지 않는다. 그래프 · 정렬 · 검색 테스트는 저장소 없이
 `{해시: Commit}` 을 손으로 만들어 넣는다.

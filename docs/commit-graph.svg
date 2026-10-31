@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 300" width="820" height="300" role="img" aria-label="시연이 만든 커밋 그래프. 뿌리 1ea39d 에서 feature 쪽으로 89ba40, 2414e1 이, main 쪽으로 3d3ce3 이 이어진다. 화살표는 자식이 부모를 가리키는 parents 방향이다. feature 는 2414e1, main 은 3d3ce3 을 가리키고 HEAD 는 main 을 가리킨다. LOG 순서는 1ea39d, 3d3ce3, 89ba40, 2414e1 이라 만든 순서와 다르다.">
+  <title>시연이 만든 커밋 그래프. 뿌리 1ea39d 에서 feature 쪽으로 89ba40, 2414e1 이, main 쪽으로 3d3ce3 이 이어진다. 화살표는 자식이 부모를 가리키는 parents 방향이다. feature 는 2414e1, main 은 3d3ce3 을 가리키고 HEAD 는 main 을 가리킨다. LOG 순서는 1ea39d, 3d3ce3, 89ba40, 2414e1 이라 만든 순서와 다르다.</title>
+  <style>
+    svg { color: #1f2328; }
+    text { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; font-size: 12px; fill: currentColor; }
+    .card { fill: #ffffff; stroke: #d1d9e0; stroke-width: 1; }
+    .hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+    .msg, .lbl, .axis { fill: #59636e; }
+    .msg { font-size: 11.5px; }
+    .order { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; font-weight: 600; fill: #0969da; }
+    .node { fill: #ffffff; stroke: currentColor; stroke-width: 1.4; }
+    .edge { fill: none; stroke: currentColor; stroke-width: 1.6; }
+    .ptr { fill: #f6f8fa; stroke: #59636e; stroke-width: 1.2; }
+    .ptr-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+    .ptr-edge { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; }
+    .axis-line { stroke: #59636e; stroke-width: 1.2; }
+  </style>
+  <!-- 흰 카드 위에 그려 GitHub 다크 모드에서도 읽히게 한다 -->
+  <rect x="0.5" y="0.5" width="819" height="299" rx="8" class="card"/>
+      <defs>
+        <marker id="dag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/>
+        </marker>
+      </defs>
+
+      <!-- 범례: 화살표 두 종류 -->
+      <line x1="20" y1="26" x2="56" y2="26" class="edge" marker-end="url(#dag-arrow)"/>
+      <text x="64" y="30" class="lbl">parents: 자식이 부모를 가리킨다</text>
+      <line x1="290" y1="26" x2="326" y2="26" class="ptr-edge" marker-end="url(#dag-arrow)"/>
+      <text x="334" y="30" class="lbl">브랜치 · HEAD 가 가리키는 곳</text>
+
+      <!-- 간선: 자식에서 부모로 -->
+      <line x1="582" y1="96" x2="159" y2="96" class="edge" marker-end="url(#dag-arrow)"/>
+      <text x="370" y="89" class="lbl" text-anchor="middle">parents</text>
+      <path d="M222,206 C150,206 100,190 100,121" class="edge" marker-end="url(#dag-arrow)"/>
+      <text x="92" y="172" class="lbl" text-anchor="end">parents</text>
+      <line x1="402" y1="206" x2="339" y2="206" class="edge" marker-end="url(#dag-arrow)"/>
+      <text x="370" y="199" class="lbl" text-anchor="middle">parents</text>
+
+      <!-- 커밋: 가로 위치는 만든 순서, 위 번호는 LOG 순서 -->
+      <rect x="42" y="72" width="116" height="48" rx="6" class="node"/>
+      <text x="100" y="92" class="hash" text-anchor="middle">1ea39d</text>
+      <text x="100" y="110" class="msg" text-anchor="middle">Add login page</text>
+      <text x="100" y="64" class="order" text-anchor="middle">LOG 1</text>
+
+      <rect x="222" y="182" width="116" height="48" rx="6" class="node"/>
+      <text x="280" y="202" class="hash" text-anchor="middle">89ba40</text>
+      <text x="280" y="220" class="msg" text-anchor="middle">Fix login bug</text>
+      <text x="280" y="174" class="order" text-anchor="middle">LOG 3</text>
+
+      <rect x="402" y="182" width="116" height="48" rx="6" class="node"/>
+      <text x="460" y="202" class="hash" text-anchor="middle">2414e1</text>
+      <text x="460" y="220" class="msg" text-anchor="middle">Add search index</text>
+      <text x="460" y="174" class="order" text-anchor="middle">LOG 4</text>
+
+      <rect x="582" y="72" width="116" height="48" rx="6" class="node"/>
+      <text x="640" y="92" class="hash" text-anchor="middle">3d3ce3</text>
+      <text x="640" y="110" class="msg" text-anchor="middle">Update README</text>
+      <text x="640" y="64" class="order" text-anchor="middle">LOG 2</text>
+
+      <!-- 브랜치와 HEAD -->
+      <line x1="730" y1="96" x2="700" y2="96" class="ptr-edge" marker-end="url(#dag-arrow)"/>
+      <rect x="730" y="83" width="64" height="26" rx="13" class="ptr"/>
+      <text x="762" y="100" class="ptr-text" text-anchor="middle">main</text>
+
+      <line x1="550" y1="206" x2="520" y2="206" class="ptr-edge" marker-end="url(#dag-arrow)"/>
+      <rect x="550" y="193" width="80" height="26" rx="13" class="ptr"/>
+      <text x="590" y="210" class="ptr-text" text-anchor="middle">feature</text>
+
+      <line x1="762" y1="53" x2="762" y2="81" class="ptr-edge" marker-end="url(#dag-arrow)"/>
+      <rect x="730" y="27" width="64" height="26" rx="13" class="ptr"/>
+      <text x="762" y="44" class="ptr-text" text-anchor="middle">HEAD</text>
+
+      <!-- 시간 축: 날짜 정렬 순서 -->
+      <line x1="42" y1="262" x2="700" y2="262" class="axis-line"/>
+      <line x1="100" y1="257" x2="100" y2="267" class="axis-line"/>
+      <line x1="280" y1="257" x2="280" y2="267" class="axis-line"/>
+      <line x1="460" y1="257" x2="460" y2="267" class="axis-line"/>
+      <line x1="640" y1="257" x2="640" y2="267" class="axis-line"/>
+      <text x="100" y="284" class="axis" text-anchor="middle">13:02:35</text>
+      <text x="280" y="284" class="axis" text-anchor="middle">13:02:36</text>
+      <text x="460" y="284" class="axis" text-anchor="middle">13:02:37</text>
+      <text x="640" y="284" class="axis" text-anchor="middle">13:02:38</text>
+      <text x="708" y="266" class="axis">만든 시각 →</text>
+</svg>
