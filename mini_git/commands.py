@@ -19,6 +19,16 @@ from mini_git.sorting import merge_sort
 Handler = Callable[[Repository, Command], str]
 
 
+def _check_value(command: Command, value: str, what: str) -> None:
+    """인자 값 하나를 받아, 값으로 쓸 수 없으면 InvalidArgs 를 낸다. 쓸 수 있으면 아무것도 하지 않는다.
+
+    빈 값과 공백만 있는 값은 쓸 수 없다. 따옴표 안의 공백은 파서가 살려 두므로 `COMMIT "   "` 도
+    여기까지 온다. 그대로 받으면 메시지 없는 커밋이나 이름 없는 브랜치가 생긴다.
+    """
+    if not value.strip():
+        raise InvalidArgs(f"{command.name.upper()} <{what}> must not be empty")
+
+
 def _one_arg(command: Command, what: str) -> str:
     """위치 인자가 정확히 하나인지 확인하고 그것을 돌려준다.
 
@@ -31,6 +41,7 @@ def _one_arg(command: Command, what: str) -> str:
             f"{command.name.upper()} takes exactly one argument (<{what}>); "
             "quote it if it contains spaces"
         )
+    _check_value(command, command.args[0], what)
     return command.args[0]
 
 
@@ -202,6 +213,7 @@ def handle_search(repo: Repository, command: Command) -> str:
         raise InvalidArgs("SEARCH takes either a keyword or --author, not both")
 
     if author is not None:
+        _check_value(command, author, "name")
         found = repo.index.find_by_author(author)
         subject = f"--author={author}"
     else:
@@ -210,6 +222,7 @@ def handle_search(repo: Repository, command: Command) -> str:
                 "SEARCH takes exactly one keyword (or --author=<name>); "
                 "quote it if it contains spaces"
             )
+        _check_value(command, command.args[0], "keyword")
         found = repo.index.find_by_keyword(command.args[0])
         subject = command.args[0]
 

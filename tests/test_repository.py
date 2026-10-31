@@ -221,6 +221,22 @@ class DivergingBranchTest(unittest.TestCase):
         self.assertIn(base.hash, repo.commits)
         self.assertIn(login.hash, repo.commits)
 
+    def test_브랜치와_HEAD_가_가리키는_곳이_늘_있다(self):
+        repo = fresh()
+        repo.create_branch("empty")  # 커밋 전에 만든 브랜치는 아무것도 안 가리킨다
+        repo.commit("Initial commit")
+        repo.create_branch("feature")
+        repo.switch("feature")
+        repo.commit("Add login feature")
+        repo.switch("main")
+        repo.commit("Add payment feature")
+
+        self.assertIn(repo.head, repo.branches)
+        self.assertIsNone(repo.branches["empty"])
+        for name, commit_hash in repo.branches.items():
+            if commit_hash is not None:
+                self.assertIn(commit_hash, repo.commits, name)
+
 
 if __name__ == "__main__":
     unittest.main()

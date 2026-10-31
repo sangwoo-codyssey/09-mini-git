@@ -149,6 +149,13 @@ class TopologicalOrderTest(unittest.TestCase):
             [c.hash for c in self.assert_parents_first(commits)], ["aa", "cc"]
         )
 
+    def test_사이클이_있으면_ValueError(self):
+        # 실제 저장소에서는 부모가 늘 먼저 저장되고 Commit 이 불변이라 만들 수 없는 입력이다.
+        #   rr <- aa <-> bb   rr 은 나가지만, 그 뒤 aa 와 bb 가 서로를 기다린다.
+        commits = build(("rr", ()), ("aa", ("rr", "bb")), ("bb", ("aa",)))
+        with self.assertRaises(ValueError):
+            topological_order(commits)
+
 
 def diamond() -> dict[str, Commit]:
     """마름모. aa 에서 갈라져 dd 에서 다시 만난다 (머지 커밋 모양).

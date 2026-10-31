@@ -56,6 +56,12 @@ class TokenizeTest(unittest.TestCase):
     def test_연속_공백은_빈_토큰을_만들지_않는다(self):
         self.assertEqual(tokenize_message("a    b"), {"a", "b"})
 
+    def test_구두점은_떼지_않는다(self):
+        # 최소 기준만 따르므로 "fix:" 와 "fix" 는 다른 키워드다.
+        self.assertEqual(
+            tokenize_message("Fix: login bug,"), {"fix:", "login", "bug,"}
+        )
+
 
 class ScanByKeywordTest(unittest.TestCase):
     def found(self, keyword: str) -> set[str]:
